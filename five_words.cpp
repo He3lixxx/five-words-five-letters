@@ -44,10 +44,10 @@ static bool recurse(uint32_t chars_so_far, int words_so_far, uint32_t start_inde
     // don't descend into the same starting characters multiple times
     if (words_so_far >= 2) {
         uint32_t previously_tested_from = tried_without_success_from[chars_so_far];
-        if(previously_tested_from <= start_index) {
+        if (previously_tested_from <= start_index) {
             return false;
         }
-        if(previously_tested_from != -1) {
+        if (previously_tested_from != -1) {
             words_end = words_begin + previously_tested_from;
         }
     }
@@ -72,6 +72,39 @@ static bool recurse(uint32_t chars_so_far, int words_so_far, uint32_t start_inde
     return success;
 }
 
+uint32_t bit_for_char(unsigned char c) {
+    switch(c) {
+        case 'e': return 1 << 0;
+        case 'a': return 1 << 1;
+        case 'r': return 1 << 2;
+        case 'i': return 1 << 3;
+        case 'o': return 1 << 4;
+        case 't': return 1 << 5;
+        case 'n': return 1 << 6;
+        case 's': return 1 << 7;
+        case 'l': return 1 << 8;
+        case 'c': return 1 << 9;
+        case 'u': return 1 << 10;
+        case 'd': return 1 << 11;
+        case 'p': return 1 << 12;
+        case 'm': return 1 << 13;
+        case 'h': return 1 << 14;
+        case 'g': return 1 << 15;
+        case 'b': return 1 << 16;
+        case 'f': return 1 << 17;
+        case 'y': return 1 << 18;
+        case 'w': return 1 << 19;
+        case 'k': return 1 << 20;
+        case 'v': return 1 << 21;
+        case 'x': return 1 << 22;
+        case 'z': return 1 << 23;
+        case 'j': return 1 << 24;
+        case 'q': return 1 << 25;
+        default:
+            throw std::runtime_error("Invalid input character: " + std::to_string(c));
+    }
+}
+
 int main() {
     std::ios_base::sync_with_stdio(false);
     std::cin.tie(NULL);
@@ -86,12 +119,11 @@ int main() {
         if (str_word.length() != 5) {
             continue;
         }
-
         ++five_letter_word_count;
 
         uint32_t word = 0;
         for (unsigned char c : str_word) {
-            word |= 1 << (std::tolower(c) - 'a');
+            word |= bit_for_char(c);
         }
 
         if (std::popcount(word) != 5) {
@@ -100,7 +132,6 @@ int main() {
 
         word_mappings[word].push_back(str_word);
     }
-
     words.resize(word_mappings.size());
     std::transform(word_mappings.begin(), word_mappings.end(), words.begin(), [](const auto& el) {return el.first;});
 
