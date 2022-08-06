@@ -1,3 +1,18 @@
+The user oisyn has built a solver that runs in ~0.1s, improving by an order of
+magnitude to our implementation here. Their code can be found at:
+https://github.com/oisyn/parkerwords.
+
+They use the fact that when searching for combinations of five words, 25 of the
+26 available letters must be used. Combined with an ordering of the words by
+their "lowest" contained character, this allows for more aggressive early
+pruning of combinations, as the implementation can easily detect that none of
+the following words is able to fill a missing letter anymore.
+
+This is a very nice optimization idea for the 25 out of 26 letters case. The
+approach presented here is a bit slower, but also more general, as it also
+handles searching for combinations of three and four words.
+
+
 ### Five Five-Letter Words With Twenty-Five Unique Letters
 
 In his 2022 video ["Can you find: five five-letter words with twenty-five
@@ -20,10 +35,10 @@ optimization / competitive programming challenge). So, we present a proof of
 concept for an efficient solution of the problem. On a i5-6200U running Ubuntu
 22.04, our implementation computes all combinations from the initial word list
 in 1.7s, improving by approximately three orders of magnitude compared to the
-state-of-the-art solution. Our approach is not very complex, and certainly
-simpler than the graph approach. The C++ implementation is ~150 lines long, but
-the actual algorithm without IO can be implemented in less than 50 lines.  We
-describe the approach in detail below.
+solutions presented in the video. Our approach is not very complex, and
+certainly simpler than the graph approach. The C++ implementation is ~150 lines
+long, but the actual algorithm without IO can be implemented in less than 50
+lines. We describe the approach in detail below.
 
 
 ### Building and Running
