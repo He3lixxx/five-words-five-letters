@@ -7,11 +7,13 @@
 #include <string>
 #include <algorithm>
 
+// input data
 static std::vector<uint32_t> words;
 static std::unordered_map<uint32_t, std::vector<std::string>> word_mappings;
+
+// working set of the algorithm
 static std::vector<uint32_t> tried_without_success_from(1<<26, -1);
 static std::bitset<1<<26> tried_without_success_from_bloom_filter;
-
 static uint32_t current_words_stack[5];
 
 static uint64_t result_count = 0;
@@ -33,7 +35,6 @@ static bool recurse(uint32_t chars_so_far, int words_so_far, uint32_t start_inde
 
         result_count += 1;
         result_with_anagram_count += anagram_combinations;
-
         return true;
     }
 
@@ -73,8 +74,10 @@ static bool recurse(uint32_t chars_so_far, int words_so_far, uint32_t start_inde
     return success;
 }
 
+// could be static and constexpr, but GCC generates 10% slower code then
 uint32_t bit_for_char(unsigned char c) {
-    switch(c) {
+    // ordered by probability to occur in english text
+    switch (c) {
         case 'e': return 1 << 0;
         case 'a': return 1 << 1;
         case 'r': return 1 << 2;
@@ -109,13 +112,10 @@ uint32_t bit_for_char(unsigned char c) {
 int main() {
     std::ios_base::sync_with_stdio(false);
     std::cin.tie(NULL);
-
-    constexpr size_t expected_unique_five_letter_word_count = 5977;
-    word_mappings.reserve(expected_unique_five_letter_word_count);
+    word_mappings.reserve(5977); // Parker's input file. Just memory pre-allocation, not required for correctness.
 
     size_t five_letter_word_count = 0;
-
-    auto str_word = std::string("");
+    std::string str_word;
     while (std::cin >> str_word) {
         if (str_word.length() != 5) {
             continue;

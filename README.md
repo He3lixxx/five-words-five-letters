@@ -19,7 +19,7 @@ However, it still appeared to the author as optimizable ;) (and a fun
 optimization / competitive programming challenge). So, we present a proof of
 concept for an efficient solution of the problem. On a i5-6200U running Ubuntu
 22.04, our implementation computes all combinations from the initial word list
-in 2.4s, improving by approximately three orders of magnitude compared to the
+in 1.7s, improving by approximately three orders of magnitude compared to the
 state-of-the-art solution. Our approach is not very complex, and certainly
 simpler than the graph approach.  The C++ implementation is ~100 lines long.
 We describe the approach in detail below.
@@ -65,16 +65,16 @@ We describe the approach in detail below.
    Read 15920 words with 5 characters.
    of those, 5977 unique words remain when removing anagrams.
    Done. 538 results found (equals 831 results when including anagrams).
-   ./five_words < words_alpha.txt > /dev/null  2,30s user 0,12s system 99% cpu 2,421 total
+   ./five_words < words_alpha.txt > /dev/null  1,60s user 0,14s system 99% cpu 1,737 total
    ```
 
 ### Approach
 The approach is simple: We see words as 5-sets of (lower-case) letters.  The
 english alphabet has 26 letters, so we can store one such set in a single 32bit
-number: The n-th bit is 1 if the set contains the n-th character of the
-alphabet. This uses 26 of the available 32 bits.  For example, the word "ac"
-would be the number 0b101 (leading zeros omitted) Now, we can easily compute
-set intersection and unions by using bitwise and/or instructions.
+number: Each bit represents a single character, and is set if the character is
+contained in the set. This uses the 26 lower of the available 32 bits.  Now, we
+can easily compute set intersection and unions by using bitwise and/or
+instructions.
 
 For building the actual combinations, we follow a simple recursive approach:
 * Start with zero selected words.
@@ -93,15 +93,28 @@ For building the actual combinations, we follow a simple recursive approach:
 * For each combination, all 5! = 120 permutations of the five words would be
   valid. To find only one permutation, we simply use the order of the
   internally stored word list, and only look at combinations where elements are
-  ordered the same as in the word list.  In technical terms: During recursion,
-  we always keep track of where we are in the word list in the outer recursion
-  levels. Inner recursion levels then start at that location instead of the
-  start.
+  ordered the same as in the word list. This idea has already been implemented
+  in previous approaches.  In technical terms: During recursion, we always keep
+  track of where we are in the word list in the outer recursion levels. Inner
+  recursion levels then start at that location instead of the start.
 * To prevent recursing into branches that we already tested earlier, we keep
   track of character sets that we processed earlier without any results, and
   from which input word on this was wthe case.  For this, we store an array of
-  2^26 32bit-starting offsets in memory, which takes approximately 250MB of
+  2^26 32bit starting offsets in memory, which takes approximately 250MB of
   storage space.  Accessing it in random order is slow due to cache misses, but
   still faster than trying to fill up a character set for which we already
   computed that no solutions exist.  We sort the input words before processing
   to can achieve a slightly better cache locality with these accesses.
+  * We assign the characters to the bits in such a way that the lower bits
+    represent characters that occur more often in english writing. For example,
+    the first bit represents the letter 'e', the second bit represents the
+    letter 'a', and so on. Due to non-uniform distribution of letters in
+    written english, this allows us to quickly skip big chunks of combinations:
+    When the algorithm picks a first words that contains an 'e', all following
+    word picks will directly skip past all other words that also contain an 'e'
+    in a tight loop.
+  * To reduce the impact of cache misses, we put a blur filter in front of the
+    250MB memory block. This is a simple 8MB bit set, storing the information
+    whether we've already stored information for a cache set. The random access
+    into the 250MB starting offsets can thus be reduced to cases where there is
+    an actual value stored that allows to take the shortcut.
