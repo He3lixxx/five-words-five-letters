@@ -4,15 +4,15 @@ In his 2022 video ["Can you find: five five-letter words with twenty-five
 unique letters?"](https://youtu.be/_-AfhLQfb6w), Matt Parker proposes the
 Wordle-inspired problem of finding all combinations of five english five-letter
 words that do not contain duplicate characters, and thus span 25 letters in
-total.  In his video, he demonstrates an approach to compute these combinations
+total. In his video, he demonstrates an approach to compute these combinations
 in a runtime of ~32 days = 2.8e6 seconds.
 
 At the end of this video, he shows an approach to solving this problem that [a
-viewer proposes](https://gitlab.com/bpaassen/five_clique).  They model a graph,
+viewer proposes](https://gitlab.com/bpaassen/five_clique). They model a graph,
 with each word being a node and two nodes being connected by an edge if they do
-not share a letter.  In this graph, a 5-clique models a valid combination from
-the original problem.  Using a generic clique-finding algorithm, their approach
-can solve the problem in ~20 minutes = 9e2 seconds.  This is three to four
+not share a letter. In this graph, a 5-clique models a valid combination from
+the original problem. Using a generic clique-finding algorithm, their approach
+can solve the problem in ~20 minutes = 9e2 seconds. This is three to four
 orders of magnitude faster than Parker's original approach.
 
 However, it still appeared to the author as optimizable ;) (and a fun
@@ -21,8 +21,9 @@ concept for an efficient solution of the problem. On a i5-6200U running Ubuntu
 22.04, our implementation computes all combinations from the initial word list
 in 1.7s, improving by approximately three orders of magnitude compared to the
 state-of-the-art solution. Our approach is not very complex, and certainly
-simpler than the graph approach.  The C++ implementation is ~100 lines long.
-We describe the approach in detail below.
+simpler than the graph approach. The C++ implementation is ~150 lines long, but
+the actual algorithm without IO can be implemented in less than 50 lines.  We
+describe the approach in detail below.
 
 
 ### Building and Running
@@ -32,7 +33,7 @@ We describe the approach in detail below.
    cd five-words-five-letters
    ```
 
-2. Build the source code.  We use the C++20 function `std::popcount`
+2. Build the source code. We use the C++20 function `std::popcount`
    internally, so your compiler requires minimal C++20 support (GCC 9.2 (2019)
    or Clang 9 (2019) and above). With older compilers, you should be able to
    replace the call with `__popcnt()` or whatever intrinsic your compiler
@@ -69,10 +70,10 @@ We describe the approach in detail below.
    ```
 
 ### Approach
-The approach is simple: We see words as 5-sets of (lower-case) letters.  The
+The approach is simple: We see words as 5-sets of (lower-case) letters. The
 english alphabet has 26 letters, so we can store one such set in a single 32bit
 number: Each bit represents a single character, and is set if the character is
-contained in the set. This uses the 26 lower of the available 32 bits.  Now, we
+contained in the set. This uses the 26 lower of the available 32 bits. Now, we
 can easily compute set intersection and unions by using bitwise and/or
 instructions.
 
@@ -85,7 +86,7 @@ For building the actual combinations, we follow a simple recursive approach:
 * Keep track of the words chosen so far in a stack (which always contains
   between zero and five 32bit numbers).
 * If the recursive function is called with five words selected, we have found a
-  valid combination.  Find out what the character order in the input was (maybe
+  valid combination. Find out what the character order in the input was (maybe
   there are multiple input words, in cases of anagrams) and output the
   combination.
 
@@ -94,16 +95,16 @@ For building the actual combinations, we follow a simple recursive approach:
   valid. To find only one permutation, we simply use the order of the
   internally stored word list, and only look at combinations where elements are
   ordered the same as in the word list. This idea has already been implemented
-  in previous approaches.  In technical terms: During recursion, we always keep
+  in previous approaches. In technical terms: During recursion, we always keep
   track of where we are in the word list in the outer recursion levels. Inner
   recursion levels then start at that location instead of the start.
 * To prevent recursing into branches that we already tested earlier, we keep
   track of character sets that we processed earlier without any results, and
-  from which input word on this was wthe case.  For this, we store an array of
+  from which input word on this was the case. For this, we store an array of
   2^26 32bit starting offsets in memory, which takes approximately 250MB of
-  storage space.  Accessing it in random order is slow due to cache misses, but
+  storage space. Accessing it in random order is slow due to cache misses, but
   still faster than trying to fill up a character set for which we already
-  computed that no solutions exist.  We sort the input words before processing
+  computed that no solutions exist. We sort the input words before processing
   to can achieve a slightly better cache locality with these accesses.
   * We assign the characters to the bits in such a way that the lower bits
     represent characters that occur more often in english writing. For example,
@@ -118,3 +119,18 @@ For building the actual combinations, we follow a simple recursive approach:
     whether we've already stored information for a cache set. The random access
     into the 250MB starting offsets can thus be reduced to cases where there is
     an actual value stored that allows to take the shortcut.
+
+#### Possible Optimizations That We Didn't Implement
+* We've only focused on optimizing the actual brute-force search. For IO, we
+  still use C++ `iostreams`. When we find a result combination, we look up the
+  original word for each of the contained 5-character sets using a
+  `std::unordered_map`. These are known to be slow(er than necessary), but this
+  is not in the hot code path. By using manual IO using `getchar_unlocked()` or
+  similar, and by swapping out the hashmap with the `robin_hood` implementation
+  or similar, we estimate that we could further decrease runtime by
+  approximately 100ms, but the code would be less portable and it would
+  introduce dependencies.
+* We didn't implement multithreading. It would require more code and add a
+  CPU-time overhead to reduce wall clock time, and we think CPU time (and
+  energy consumption) is the more relevant metric here (since we reached
+  execution in seconds).
