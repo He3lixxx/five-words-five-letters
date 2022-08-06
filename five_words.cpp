@@ -9,8 +9,8 @@
 
 static std::vector<uint32_t> words;
 static std::unordered_map<uint32_t, std::vector<std::string>> word_mappings;
-
 static std::vector<uint32_t> tried_without_success_from(1<<26, -1);
+static std::bitset<1<<26> tried_without_success_from_bloom_filter;
 
 static uint32_t current_words_stack[5];
 
@@ -42,7 +42,7 @@ static bool recurse(uint32_t chars_so_far, int words_so_far, uint32_t start_inde
     auto word_it = words_begin + start_index;
 
     // don't descend into the same starting characters multiple times
-    if (words_so_far >= 2) {
+    if (words_so_far >= 2 && tried_without_success_from_bloom_filter[chars_so_far]) {
         uint32_t previously_tested_from = tried_without_success_from[chars_so_far];
         if (previously_tested_from <= start_index) {
             return false;
@@ -66,6 +66,7 @@ static bool recurse(uint32_t chars_so_far, int words_so_far, uint32_t start_inde
     }
 
     if (!success && words_so_far <= 3) {
+        tried_without_success_from_bloom_filter[chars_so_far] = true;
         tried_without_success_from[chars_so_far] = start_index;
     }
 
@@ -127,9 +128,8 @@ int main() {
         }
 
         if (std::popcount(word) != 5) {
-            continue; // contains a character multiple times.
+            continue;  // contains a character multiple times.
         }
-
         word_mappings[word].push_back(str_word);
     }
     words.resize(word_mappings.size());
