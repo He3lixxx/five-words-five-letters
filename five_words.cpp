@@ -7,17 +7,17 @@
 #include <string>
 #include <algorithm>
 
-std::vector<uint32_t> words;
-std::unordered_map<uint32_t, std::vector<std::string>> word_mappings;
+static std::vector<uint32_t> words;
+static std::unordered_map<uint32_t, std::vector<std::string>> word_mappings;
 
-std::bitset<1 << 26> tried_without_success;
+static std::vector<uint32_t> tried_without_success_from(1<<26, -1);
 
-std::vector<uint32_t> current_words_stack;
+static uint32_t current_words_stack[5];
 
-uint64_t result_count = 0;
-uint64_t result_with_anagram_count = 0;
+static uint64_t result_count = 0;
+static uint64_t result_with_anagram_count = 0;
 
-bool recurse(uint32_t chars_so_far, int words_so_far, size_t start_index) {
+static bool recurse(uint32_t chars_so_far, int words_so_far, uint32_t start_index) {
     if (words_so_far == 5) {
         uint64_t anagram_combinations = 1;
         std::cout << "Found solution for 5 words: ";
@@ -37,26 +37,36 @@ bool recurse(uint32_t chars_so_far, int words_so_far, size_t start_index) {
         return true;
     }
 
+    auto words_begin = words.begin();
+    auto words_end = words.end();
+    auto word_it = words_begin + start_index;
+
     // don't descend into the same starting characters multiple times
     if (words_so_far >= 2) {
-        if (tried_without_success[chars_so_far]) {
+        uint32_t previously_tested_from = tried_without_success_from[chars_so_far];
+        if(previously_tested_from <= start_index) {
             return false;
+        }
+        if(previously_tested_from != -1) {
+            words_end = words_begin + previously_tested_from;
         }
     }
 
     bool success = false;
-    for (size_t i = start_index; i < words.size(); ++i) {
-        uint32_t word = words[i];
-
-        if ((word & chars_so_far) == 0) {
-            current_words_stack.push_back(word);
-            success |= recurse(word | chars_so_far, words_so_far + 1, i + 1);
-            current_words_stack.pop_back();
+    while (true) {
+        word_it = std::find_if(word_it, words_end, [&](uint32_t word){ return (word & chars_so_far) == 0; });
+        if (word_it == words_end) {
+            break;
         }
+
+        uint32_t word = *word_it;
+        current_words_stack[words_so_far] = word;
+        success |= recurse(word | chars_so_far, words_so_far + 1, word_it - words_begin + 1);
+        ++word_it;
     }
 
-    if(!success) {
-        tried_without_success[chars_so_far] = true;
+    if (!success && words_so_far <= 3) {
+        tried_without_success_from[chars_so_far] = start_index;
     }
 
     return success;
@@ -67,9 +77,7 @@ int main() {
     std::cin.tie(NULL);
 
     constexpr size_t expected_unique_five_letter_word_count = 5977;
-
     word_mappings.reserve(expected_unique_five_letter_word_count);
-    current_words_stack.reserve(5);
 
     size_t five_letter_word_count = 0;
 
@@ -99,7 +107,7 @@ int main() {
     std::cerr << "Read " << five_letter_word_count << " words with 5 characters.\n";
     std::cerr << "of those, " << word_mappings.size() << " unique words remain when removing anagrams.\n";
 
-    std::sort(words.begin(), words.end());  // for cache efficiency with the bitset.
+    std::sort(words.begin(), words.end());  // for cache efficiency
 
     recurse(0, 0, 0);
 

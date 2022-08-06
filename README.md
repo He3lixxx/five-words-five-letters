@@ -16,13 +16,13 @@ can solve the problem in ~20 minutes = 9e2 seconds.  This is three to four
 orders of magnitude faster than Parker's original approach.
 
 However, it still appeared to the author as optimizable ;) (and a fun
-optimization / competitive programming challenge). So, we present our solution
-to the problem. On a i5-6200U running Ubuntu 22.04, our implementation computes
-all combinations from the initial word list in 1.8s, improving by
-approximately three orders of magnitude compared to the state-of-the-art
-solution. Our approach is not very complex, and certainly simpler than the
-graph approach.  The C++ implementation is ~100 lines long.  We describe the
-approach in detail below.
+optimization / competitive programming challenge). So, we present a proof of
+concept for an efficient solution of the problem. On a i5-6200U running Ubuntu
+22.04, our implementation computes all combinations from the initial word list
+in 2.4s, improving by approximately three orders of magnitude compared to the
+state-of-the-art solution. Our approach is not very complex, and certainly
+simpler than the graph approach.  The C++ implementation is ~100 lines long.
+We describe the approach in detail below.
 
 
 ### Building and Running
@@ -65,14 +65,14 @@ approach in detail below.
    Read 15920 words with 5 characters.
    of those, 5977 unique words remain when removing anagrams.
    Done. 538 results found (equals 831 results when including anagrams).
-   ./five_words < words_alpha.txt > /dev/null  1,77s user 0,00s system 99% cpu 1,774 total
+   ./five_words < words_alpha.txt > /dev/null  2,30s user 0,12s system 99% cpu 2,421 total
    ```
 
 ### Approach
 The approach is simple: We see words as 5-sets of (lower-case) letters.  The
 english alphabet has 26 letters, so we can store one such set in a single 32bit
 number: The n-th bit is 1 if the set contains the n-th character of the
-alphabet.  This uses 26 of the available 32 bits.  For example, the word "ac"
+alphabet. This uses 26 of the available 32 bits.  For example, the word "ac"
 would be the number 0b101 (leading zeros omitted) Now, we can easily compute
 set intersection and unions by using bitwise and/or instructions.
 
@@ -97,17 +97,11 @@ For building the actual combinations, we follow a simple recursive approach:
   we always keep track of where we are in the word list in the outer recursion
   levels. Inner recursion levels then start at that location instead of the
   start.
-* To prevent recursing into branches that we already tested earlier, we use a
-  bitset. It has 2^26 = 6.7e7 entries, one for every possible 26-letter-subset
-  we could have possibly encountered. This requires 8MB of memory to store.
-  Initially, all bits are 0. If we encounter a subbranch, say for the character
-  set "asdfgqwertz", and we find that it is not possible to combine this set
-  with three more words to form a valid result combination, we store a 1 in the
-  bitset at the location of this set. This allows us to remember that we
-  already tried to come up with a solution for this subset and failed, and thus
-  do not have to recurse into this branch again.
-  * Since 8MB is too big to fit into L1 or L2 cache in most processors, we try
-    to make our access pattern into the bitset less random by sorting all input
-    words by their set-representation first. This way, we will likely access
-    bits in closer proximity to the last accesses, and increase the chance of
-    cache hits.
+* To prevent recursing into branches that we already tested earlier, we keep
+  track of character sets that we processed earlier without any results, and
+  from which input word on this was wthe case.  For this, we store an array of
+  2^26 32bit-starting offsets in memory, which takes approximately 250MB of
+  storage space.  Accessing it in random order is slow due to cache misses, but
+  still faster than trying to fill up a character set for which we already
+  computed that no solutions exist.  We sort the input words before processing
+  to can achieve a slightly better cache locality with these accesses.
